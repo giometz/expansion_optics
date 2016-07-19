@@ -107,3 +107,14 @@ class Selective_Sweep(object):
         expansion_shape_labeled = cur_pop_types[expansion_shape]
 
         return expansion_shape_labeled
+
+    def get_expansion_history(self):
+        expansion_history = np.argmin(self.travel_times, axis=0)
+        expansion_history_labeled = self.pop_type[expansion_history]
+
+        return expansion_history_labeled
+
+    def get_min_times(self):
+        min_expansion_times = np.min(self.travel_times, axis=0)
+
+        return min_expansion_times

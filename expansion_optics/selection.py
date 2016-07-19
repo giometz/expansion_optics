@@ -1,16 +1,17 @@
 import skfmm as fmm
 import numpy as np
+import pandas as pd
 
 class Selective_Sweep(object):
 
-    def __init__(self, initial_speeds=None, initial_widths=None,
+    def __init__(self, speeds=None, widths=None,
                  Lx=None, Ly = None, Nx=None, innoc_width=5):
 
-        self.initial_speeds = np.array([1., 1.1, 1., 1.15, 1.])
-        self.initial_widths = np.array([.2, .2, .2, .2, .2])
+        self.initial_speeds = speeds
+        self.initial_widths = widths
 
-        self.num_widths = initial_widths.shape[0]
-        self.num_pops = np.unique(initial_speeds).shape[0]
+        self.num_widths = self.initial_widths.shape[0]
+        self.num_pops = np.unique(self.initial_speeds).shape[0]
 
         self.Lx = Lx
         self.Ly = Ly
@@ -28,12 +29,21 @@ class Selective_Sweep(object):
         self.X, self.Y = np.meshgrid(xvalues, yvalues)
 
         # Initialize the lattice
-        self.lattice_mesh = np.zeros((self.num_widths, self.Ny, self.Nx), dtype=np.int)
+        self.lattice_mesh = -1*np.ones((self.num_widths, self.Ny, self.Nx), dtype=np.int)
         self.speed_mesh = np.ones((self.num_widths, self.Ny, self.Nx), dtype=np.double)
 
         self.initialize_meshes()
 
-        self.travel_times = None
+        # Setup labels
+        labels = np.unique(self.initial_speeds)
+        self.pop_type = np.zeros_like(self.initial_speeds, dtype=np.int)
+        for label_num, cur_label in enumerate(labels):
+            label_positions = self.initial_speeds == cur_label
+            self.pop_type[np.where(label_positions)[0]] = label_num
+
+        # Run the fast marching
+
+        self.travel_times = np.zeros_like(self.lattice_mesh, dtype=np.double)
         self.run_travel_times()
 
     def initialize_meshes(self):
@@ -56,16 +66,44 @@ class Selective_Sweep(object):
             count += 1
 
     def run_travel_times(self):
-        t_list = []
         for i in range(self.lattice_mesh.shape[0]):
             cur_lattice = self.lattice_mesh[i]
             cur_speed = self.speed_mesh[i]
 
-            print cur_lattice.shape
-            print cur_speed.shape
-            print self.dx
-
             t = fmm.travel_time(cur_lattice, cur_speed, float(self.dx))
-            t_list.append(t)
 
-        self.travel_times = np.array(t_list)
+            self.travel_times[i, :, :] = t
+
+    def get_wall_df(self, i, j, tolerance = 0.5):
+        diff = np.abs(self.travel_times[i] - self.travel_times[j])
+        wall = diff < tolerance
+
+        r, c = np.where(wall)
+
+        xpos = self.X[r, c]
+        ypos = self.Y[r, c]
+
+        wall_df = pd.DataFrame(data={'x': xpos, 'y': ypos})
+        filtered_df = wall_df.groupby(['x']).agg(np.mean).reset_index()
+
+        return filtered_df
+
+    def get_expansion_shape(self, time):
+        slice_at_time = self.travel_times.copy()
+        slice_at_time[slice_at_time > time] = np.inf
+        # Insert a dummy, background slice
+        background = np.zeros_like(slice_at_time[0])
+        background[...] = time + 9999
+        background = np.array([background])
+
+        all_slices = np.concatenate([slice_at_time, background])
+
+        expansion_shape = np.nanargmin(all_slices, axis=0)
+
+        cur_pop_types = self.pop_type.copy()
+        cur_pop_types = np.append(cur_pop_types, np.max(cur_pop_types) + 1)
+
+        # Label the expansion with appropriate labels
+        expansion_shape_labeled = cur_pop_types[expansion_shape]
+
+        return expansion_shape_labeled

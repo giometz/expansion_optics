@@ -1,6 +1,7 @@
 import skfmm as fmm
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 class Selective_Sweep(object):
 
@@ -78,7 +79,7 @@ class Selective_Sweep(object):
                                      self.lattice_mesh.shape[2]),
                                     dtype=np.double)
 
-        cur_travel_times[-1, :, :] = 10**12
+        cur_travel_times[-1, :, :] = 10*max_time
         self.all_obstacles = np.ones_like(self.lattice_mesh, dtype=np.bool) * False
 
         for cur_time in times_to_run:
@@ -97,19 +98,22 @@ class Selective_Sweep(object):
                 cur_travel_times[i, :, :] = t
 
             # Based on the travel times, create obstacle masks for each strain
-            cur_travel_times[cur_travel_times > cur_time] = np.inf
+            non_background = cur_travel_times[0:self.num_widths, : , :]
+            non_background[non_background > cur_time] = np.inf
             # If cur_travel_times = 0, you are in an obstacle
-            cur_travel_times[cur_travel_times == 0] = np.inf
+            non_background[non_background == 0] = np.inf
 
             expansion_history = np.nanargmin(cur_travel_times, axis=0)
+            plt.figure()
+            plt.imshow(expansion_history)
+            plt.colorbar()
 
             for i in range(self.lattice_mesh.shape[0]): # Loop over strains, locate obstacles
                 # Make sure nan's do not interfere with future
                 not_current_strain = (expansion_history != i)
-                not_background = (expansion_history != self.lattice_mesh.shape[0] + 1)
-                not_nan = ~np.isnan(expansion_history)
+                not_background = (expansion_history != self.num_widths) # Dummy index
 
-                self.all_obstacles[i, :, :] = not_current_strain & not_background & not_nan
+                self.all_obstacles[i, :, :] = not_current_strain & not_background
 
         self.travel_times = cur_travel_times[0:self.lattice_mesh.shape[0], :, :]
 

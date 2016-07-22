@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+import skimage as ski
+
 class Selective_Sweep(object):
 
     def __init__(self, speeds=None, widths=None,
@@ -114,17 +116,41 @@ class Selective_Sweep(object):
 
         self.travel_times = cur_travel_times[0:self.num_widths, :, :]
 
-    def get_wall_df(self, i, j, tolerance = 0.5):
-        diff = np.abs(self.travel_times[i] - self.travel_times[j])
-        wall = diff < tolerance
+    def get_wall_df(self, ii, jj, tolerance = 0.5, expansion_size = 3):
 
-        r, c = np.where(wall)
+        frozen_field= self.get_expansion_history()
+        frozen_pops = np.zeros((frozen_field.shape[0], frozen_field.shape[1], self.num_widths), dtype=np.bool)
+        for i in range(self.num_widths):
+            frozen_pops[:, :, i] = (frozen_field == i)
 
-        xpos = self.X[r, c]
-        ypos = self.Y[r, c]
+        expanded_pops = np.zeros_like(frozen_pops)
 
-        wall_df = pd.DataFrame(data={'x': xpos, 'y': ypos})
-        filtered_df = wall_df.groupby(['x']).agg(np.mean).reset_index()
+        expander = ski.morphology.disk(expansion_size)
+
+        for i in range(self.num_widths):
+            cur_slice = frozen_pops[:, :, i]
+            expanded_pops[:, :, i] = ski.morphology.binary_dilation(cur_slice, selem=expander)
+
+        walls = expanded_pops[:, :, ii] * expanded_pops[:, :, jj]
+
+        labeled_walls = ski.measure.label(walls, connectivity=2)
+
+        df_list = []
+
+        for cur_label in range(1, np.max(labeled_walls) + 1):
+            r, c = np.where(labeled_walls == cur_label)
+
+            x = self.X[r, c]
+            y = self.Y[r, c]
+
+            df = pd.DataFrame(data={'i': ii, 'j': jj, 'label_num': cur_label, 'x': x, 'y': y})
+
+            # Group the df so that there is only one y for each x
+
+            df = df.groupby('x').agg(np.mean).reset_index()
+
+            df_list.append(df)
+        return pd.concat(df_list)
 
         return filtered_df
 

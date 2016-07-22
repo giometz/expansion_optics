@@ -104,9 +104,6 @@ class Selective_Sweep(object):
             non_background[non_background == 0] = np.inf
 
             expansion_history = np.nanargmin(cur_travel_times, axis=0)
-            plt.figure()
-            plt.imshow(expansion_history)
-            plt.colorbar()
 
             for i in range(self.lattice_mesh.shape[0]): # Loop over strains, locate obstacles
                 # Make sure nan's do not interfere with future
@@ -115,7 +112,7 @@ class Selective_Sweep(object):
 
                 self.all_obstacles[i, :, :] = not_current_strain & not_background
 
-        self.travel_times = cur_travel_times[0:self.lattice_mesh.shape[0], :, :]
+        self.travel_times = cur_travel_times[0:self.num_widths, :, :]
 
     def get_wall_df(self, i, j, tolerance = 0.5):
         diff = np.abs(self.travel_times[i] - self.travel_times[j])

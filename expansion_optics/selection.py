@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 import skimage as ski
+import skimage.morphology
 
 class Selective_Sweep(object):
 
@@ -116,7 +117,7 @@ class Selective_Sweep(object):
 
         self.travel_times = cur_travel_times[0:self.num_widths, :, :]
 
-    def get_wall_df(self, ii, jj, tolerance = 0.5, expansion_size = 3):
+    def get_wall_df(self, ii, jj, expansion_size = 3):
 
         frozen_field= self.get_expansion_history()
         frozen_pops = np.zeros((frozen_field.shape[0], frozen_field.shape[1], self.num_widths), dtype=np.bool)
@@ -151,8 +152,6 @@ class Selective_Sweep(object):
 
             df_list.append(df)
         return pd.concat(df_list)
-
-        return filtered_df
 
     def get_expansion_shape(self, time):
         slice_at_time = self.travel_times.copy()

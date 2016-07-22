@@ -43,8 +43,8 @@ class Selective_Sweep(object):
 
         # Run the fast marching
 
-        self.travel_times = np.zeros_like(self.lattice_mesh, dtype=np.double)
-        self.run_travel_times()
+        self.travel_times = None
+        #self.run_travel_times()
 
     def initialize_meshes(self):
 
@@ -65,14 +65,37 @@ class Selective_Sweep(object):
             sites_occupied += num_to_occupy
             count += 1
 
-    def run_travel_times(self):
-        for i in range(self.lattice_mesh.shape[0]):
-            cur_lattice = self.lattice_mesh[i]
-            cur_speed = self.speed_mesh[i]
+    def run_travel_times(self, max_time, num_intervals):
+        # create time intervals to recalculate obstacles
+        times_to_run = np.linspace(0, max_time, num_intervals + 1)
+        # Get rid of zero
+        times_to_run = times_to_run[1:]
 
-            t = fmm.travel_time(cur_lattice, cur_speed, float(self.dx))
+        cur_travel_times = np.zeros_like(self.lattice_mesh, dtype=np.double)
+        all_obstacles = np.ones_like(self.lattice_mesh, dtype=np.bool) * False
 
-            self.travel_times[i, :, :] = t
+        for cur_time in times_to_run:
+            # Assumes innoculation width ~ 0
+            for i in range(self.lattice_mesh.shape[0]):
+                cur_lattice = self.lattice_mesh[i]
+                cur_obstacle = all_obstacles[i]
+                # Mask the lattice by the obstacles...other strains
+                cur_lattice = np.ma.MaskedArray(cur_lattice, cur_obstacle)
+
+                cur_speed = self.speed_mesh[i]
+
+                t = fmm.travel_time(cur_lattice, cur_speed, float(self.dx))
+
+                cur_travel_times[i, :, :] = t
+
+            # Based on the travel times, create obstacle masks for each strain
+            cur_travel_times[cur_travel_times > cur_time] = np.nan
+            expansion_history = np.argmin(cur_travel_times, axis=0)
+
+            for i in range(self.lattice_mesh.shape[0]): # Loop over strains, locate obstacles
+                all_obstacles[i, :, :] = (expansion_history != i)
+
+        self.travel_times = cur_travel_times
 
     def get_wall_df(self, i, j, tolerance = 0.5):
         diff = np.abs(self.travel_times[i] - self.travel_times[j])

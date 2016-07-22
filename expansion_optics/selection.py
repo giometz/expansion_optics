@@ -87,7 +87,6 @@ class Selective_Sweep(object):
 
         for cur_time in times_to_run:
             print cur_time
-            # Assumes innoculation width ~ 0
             for i in range(self.lattice_mesh.shape[0]):
                 cur_lattice = self.lattice_mesh[i]
                 cur_obstacle = self.all_obstacles[i]
@@ -111,7 +110,7 @@ class Selective_Sweep(object):
             for i in range(self.lattice_mesh.shape[0]): # Loop over strains, locate obstacles
                 # Make sure nan's do not interfere with future
                 not_current_strain = (expansion_history != i)
-                not_background = (expansion_history != self.num_widths) # Dummy index
+                not_background = (expansion_history != self.num_widths) # Dummy background strain
 
                 self.all_obstacles[i, :, :] = not_current_strain & not_background
 

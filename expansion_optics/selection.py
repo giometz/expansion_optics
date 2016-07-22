@@ -44,6 +44,7 @@ class Selective_Sweep(object):
         # Run the fast marching
 
         self.travel_times = None
+        self.all_obstacles = None
         #self.run_travel_times()
 
     def initialize_meshes(self):
@@ -60,7 +61,7 @@ class Selective_Sweep(object):
 
             self.speed_mesh[count] *= cur_speed
 
-            self.lattice_mesh[count, sites_occupied:sites_occupied + num_to_occupy, 0:self.innoc_width] = 1
+            self.lattice_mesh[count, sites_occupied:sites_occupied + num_to_occupy, 0:self.innoc_width + 1] = 1
 
             sites_occupied += num_to_occupy
             count += 1
@@ -71,14 +72,21 @@ class Selective_Sweep(object):
         # Get rid of zero
         times_to_run = times_to_run[1:]
 
-        cur_travel_times = np.zeros_like(self.lattice_mesh, dtype=np.double)
-        all_obstacles = np.ones_like(self.lattice_mesh, dtype=np.bool) * False
+        # Include a dummy travel time background
+        cur_travel_times = np.zeros((self.lattice_mesh.shape[0] + 1,
+                                     self.lattice_mesh.shape[1],
+                                     self.lattice_mesh.shape[2]),
+                                    dtype=np.double)
+
+        cur_travel_times[-1, :, :] = 10**12
+        self.all_obstacles = np.ones_like(self.lattice_mesh, dtype=np.bool) * False
 
         for cur_time in times_to_run:
             # Assumes innoculation width ~ 0
             for i in range(self.lattice_mesh.shape[0]):
+                print i, 'travel_time'
                 cur_lattice = self.lattice_mesh[i]
-                cur_obstacle = all_obstacles[i]
+                cur_obstacle = self.all_obstacles[i]
                 # Mask the lattice by the obstacles...other strains
                 cur_lattice = np.ma.MaskedArray(cur_lattice, cur_obstacle)
 
@@ -89,12 +97,22 @@ class Selective_Sweep(object):
                 cur_travel_times[i, :, :] = t
 
             # Based on the travel times, create obstacle masks for each strain
-            cur_travel_times[cur_travel_times > cur_time] = np.nan
-            expansion_history = np.argmin(cur_travel_times, axis=0)
+            cur_travel_times[cur_travel_times > cur_time] = np.inf
+            # If cur_travel_times = 0, you are in an obstacle
+            cur_travel_times[cur_travel_times == 0] = np.inf
+
+            expansion_history = np.nanargmin(cur_travel_times, axis=0)
 
             for i in range(self.lattice_mesh.shape[0]): # Loop over strains, locate obstacles
-                all_obstacles[i, :, :] = (expansion_history != i)
+                print i, 'obstacle'
+                # Make sure nan's do not interfere with future
+                not_current_strain = (expansion_history != i)
+                not_background = (expansion_history != self.lattice_mesh.shape[0] + 1)
+                not_nan = ~np.isnan(expansion_history)
 
+                self.all_obstacles[i, :, :] = not_current_strain & not_background & not_nan
+
+        #self.travel_times = cur_travel_times[0:self.lattice_mesh.shape[0], :, :]
         self.travel_times = cur_travel_times
 
     def get_wall_df(self, i, j, tolerance = 0.5):
@@ -132,7 +150,9 @@ class Selective_Sweep(object):
         return expansion_shape_labeled
 
     def get_expansion_history(self):
-        expansion_history = np.argmin(self.travel_times, axis=0)
+        expansion_history = self.travel_times.copy()
+        expansion_history[expansion_history == 0] = np.inf
+        expansion_history = np.argmin(expansion_history, axis=0)
         expansion_history_labeled = self.pop_type[expansion_history]
 
         return expansion_history_labeled

@@ -123,15 +123,15 @@ class Selective_Sweep(object):
     def get_wall_df(self, ii, jj, expansion_size = 3):
 
         frozen_field= self.get_expansion_history()
-        frozen_pops = np.zeros((frozen_field.shape[0], frozen_field.shape[1], self.num_widths), dtype=np.bool)
-        for i in range(self.num_widths):
+        frozen_pops = np.zeros((frozen_field.shape[0], frozen_field.shape[1], self.num_pops), dtype=np.bool)
+        for i in range(self.num_pops):
             frozen_pops[:, :, i] = (frozen_field == i)
 
         expanded_pops = np.zeros_like(frozen_pops)
 
         expander = ski.morphology.disk(expansion_size)
 
-        for i in range(self.num_widths):
+        for i in range(self.num_pops):
             cur_slice = frozen_pops[:, :, i]
             expanded_pops[:, :, i] = ski.morphology.binary_dilation(cur_slice, selem=expander)
 
@@ -168,21 +168,15 @@ class Selective_Sweep(object):
 
         expansion_shape = np.nanargmin(all_slices, axis=0)
 
-        cur_pop_types = self.pop_type.copy()
-        cur_pop_types = np.append(cur_pop_types, np.max(cur_pop_types) + 1)
-
         # Label the expansion with appropriate labels
-        expansion_shape_labeled = cur_pop_types[expansion_shape]
-
-        return expansion_shape_labeled
+        return expansion_shape
 
     def get_expansion_history(self):
         expansion_history = self.travel_times.copy()
         expansion_history[expansion_history == 0] = np.inf
-        expansion_history = np.argmin(expansion_history, axis=0)
-        expansion_history_labeled = self.pop_type[expansion_history]
+        expansion_history = np.argmin(expansion_history, axis=0) # Labeled by unique strain already
 
-        return expansion_history_labeled
+        return expansion_history
 
     def get_min_times(self):
         min_expansion_times = np.min(self.travel_times, axis=0)

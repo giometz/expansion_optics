@@ -32,18 +32,20 @@ class Selective_Sweep(object):
 
         self.X, self.Y = np.meshgrid(xvalues, yvalues)
 
-        # Initialize the lattice
-        self.lattice_mesh = -1*np.ones((self.num_widths, self.Ny, self.Nx), dtype=np.int)
-        self.speed_mesh = np.ones((self.num_widths, self.Ny, self.Nx), dtype=np.double)
-
-        self.initialize_meshes()
-
         # Setup labels
         labels = np.unique(self.initial_speeds)
         self.pop_type = np.zeros_like(self.initial_speeds, dtype=np.int)
         for label_num, cur_label in enumerate(labels):
             label_positions = self.initial_speeds == cur_label
             self.pop_type[np.where(label_positions)[0]] = label_num
+
+        self.num_labels = labels.shape[0]
+
+        # Initialize the lattice
+        self.lattice_mesh = -1 * np.ones((self.num_labels, self.Ny, self.Nx), dtype=np.int)
+        self.speed_mesh = np.ones((self.num_labels, self.Ny, self.Nx), dtype=np.double)
+
+        self.initialize_meshes()
 
         # Run the fast marching
 
@@ -58,14 +60,16 @@ class Selective_Sweep(object):
 
         for cur_speed, cur_width in zip(self.initial_speeds, self.initial_widths):
 
+            cur_pop = self.pop_type[count]
+
             num_to_occupy = int(cur_width * self.Ny)
 
             if count == self.num_widths - 1:  # As the sum of all should equal one, but may not due to FP
                 num_to_occupy = self.Ny - sites_occupied
 
-            self.speed_mesh[count] *= cur_speed
+            self.speed_mesh[cur_pop] *= cur_speed
 
-            self.lattice_mesh[count, sites_occupied:sites_occupied + num_to_occupy, 0:self.innoc_width + 1] = 1
+            self.lattice_mesh[cur_pop, sites_occupied:sites_occupied + num_to_occupy, 0:self.innoc_width + 1] = 1
 
             sites_occupied += num_to_occupy
             count += 1
@@ -77,7 +81,7 @@ class Selective_Sweep(object):
         times_to_run = times_to_run[1:]
 
         # Include a dummy travel time background
-        cur_travel_times = np.zeros((self.lattice_mesh.shape[0] + 1,
+        cur_travel_times = np.zeros((self.num_pops + 1,
                                      self.lattice_mesh.shape[1],
                                      self.lattice_mesh.shape[2]),
                                     dtype=np.double)
@@ -87,7 +91,7 @@ class Selective_Sweep(object):
 
         for cur_time in times_to_run:
             print cur_time
-            for i in range(self.lattice_mesh.shape[0]):
+            for i in range(self.num_pops):
                 cur_lattice = self.lattice_mesh[i]
                 cur_obstacle = self.all_obstacles[i]
                 # Mask the lattice by the obstacles...other strains
@@ -100,21 +104,21 @@ class Selective_Sweep(object):
                 cur_travel_times[i, :, :] = t
 
             # Based on the travel times, create obstacle masks for each strain
-            non_background = cur_travel_times[0:self.num_widths, : , :]
+            non_background = cur_travel_times[0:self.num_pops, : , :]
             non_background[non_background > cur_time] = np.inf
             # If cur_travel_times = 0, you are in an obstacle
             non_background[non_background == 0] = np.inf
 
             expansion_history = np.nanargmin(cur_travel_times, axis=0)
 
-            for i in range(self.lattice_mesh.shape[0]): # Loop over strains, locate obstacles
+            for i in range(self.num_pops): # Loop over strains, locate obstacles
                 # Make sure nan's do not interfere with future
                 not_current_strain = (expansion_history != i)
-                not_background = (expansion_history != self.num_widths) # Dummy background strain
+                not_background = (expansion_history != self.num_pops) # Dummy background strain
 
                 self.all_obstacles[i, :, :] = not_current_strain & not_background
 
-        self.travel_times = cur_travel_times[0:self.num_widths, :, :]
+        self.travel_times = cur_travel_times[0:self.num_pops, :, :]
 
     def get_wall_df(self, ii, jj, expansion_size = 3):
 

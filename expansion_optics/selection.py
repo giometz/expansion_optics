@@ -189,6 +189,9 @@ class Radial_Selective_Sweep(Selective_Sweep):
         self.phi = None
         self.radius = None
 
+        self.center_X = None
+        self.center_Y = None
+
         super(Radial_Selective_Sweep, self).__init__(**kwargs)
 
     # Innoc width is now the initial radius
@@ -196,18 +199,18 @@ class Radial_Selective_Sweep(Selective_Sweep):
     def initialize_meshes(self):
 
         # Convert to radial coordinates
-        center_r = self.Nx/2
-        center_c = self.Ny/2
+        center_r = self.Ny/2
+        center_c = self.Nx/2
 
-        center_X = self.X[center_r, center_c]
-        center_Y = self.Y[center_r, center_c]
+        self.center_X = self.X[center_r, center_c]
+        self.center_Y = self.Y[center_r, center_c]
 
         # Convert to polar coordinates
-        DX = self.X - center_X
-        DY = self.Y - center_Y
+        self.DX = self.center_X - self.X
+        self.DY = self.center_Y - self.Y
 
-        self.phi = np.arctan2(DY, DX) + np.pi
-        self.radius = np.sqrt(DX**2 + DY**2)
+        self.phi = np.arctan2(self.DY, self.DX) + np.pi
+        self.radius = np.sqrt(self.DX**2 + self.DY**2)
 
         phi_occupied = 0
         count = 0
@@ -230,3 +233,43 @@ class Radial_Selective_Sweep(Selective_Sweep):
 
             phi_occupied += phi_to_occupy
             count += 1
+
+    def run_travel_times(self, max_time, num_intervals):
+        super(Radial_Selective_Sweep, self).run_travel_times(max_time, num_intervals)
+        self.travel_times[:, self.radius < self.innoc_width] = np.nan
+
+    def get_wall_df(self, ii, jj, expansion_size = 3):
+
+        frozen_field= self.get_expansion_history()
+        frozen_pops = np.zeros((frozen_field.shape[0], frozen_field.shape[1], self.num_pops), dtype=np.bool)
+        for i in range(self.num_pops):
+            frozen_pops[:, :, i] = (frozen_field == i)
+
+        expanded_pops = np.zeros_like(frozen_pops)
+
+        expander = ski.morphology.disk(expansion_size)
+
+        for i in range(self.num_pops):
+            cur_slice = frozen_pops[:, :, i]
+            expanded_pops[:, :, i] = ski.morphology.binary_dilation(cur_slice, selem=expander)
+
+        walls = expanded_pops[:, :, ii] * expanded_pops[:, :, jj]
+
+        labeled_walls = ski.measure.label(walls, connectivity=2)
+
+        df_list = []
+
+        for cur_label in range(1, np.max(labeled_walls) + 1):
+            r, c = np.where(labeled_walls == cur_label)
+
+            radius = self.radius[r, c]
+            phi = self.phi[r, c]
+
+            df = pd.DataFrame(data={'i': ii, 'j': jj, 'label_num': cur_label, 'radius': radius, 'phi': phi})
+
+            # Group the df so that there is only one y for each x
+
+            #df = df.groupby('x').agg(np.mean).reset_index()
+
+            df_list.append(df)
+        return pd.concat(df_list)

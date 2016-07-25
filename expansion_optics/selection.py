@@ -182,3 +182,48 @@ class Selective_Sweep(object):
         min_expansion_times = np.min(self.travel_times, axis=0)
 
         return min_expansion_times
+
+class Radial_Selective_Sweep(Selective_Sweep):
+
+    def __init__(self, **kwargs):
+        super(Radial_Selective_Sweep, self).__init__(**kwargs)
+
+    # Innoc width is now the initial radius
+
+    def initialize_meshes(self):
+
+        # Convert to radial coordinates
+        center_r = self.Nx/2
+        center_c = self.Ny/2
+
+        center_X = self.X[center_r, center_c]
+        center_Y = self.Y[center_r, center_c]
+
+        # Convert to polar coordinates
+        DX = self.X - center_X
+        DY = self.Y - center_Y
+
+        phi = np.arctan2(DY, DX) + np.pi
+        radius = np.sqrt(DX**2 + DY**2)
+
+        phi_occupied = 0
+        count = 0
+
+        for cur_speed, cur_width in zip(self.initial_speeds, self.initial_widths):
+            # Assumes cur_width is in degrees
+            cur_pop = self.pop_type[count]
+
+            phi_to_occupy = cur_width*(np.pi/180.)
+
+            if count == self.num_widths - 1:  # As the sum of all should equal one, but may not due to FP
+                phi_to_occupy = 2*np.pi - phi_occupied
+
+            self.speed_mesh[cur_pop] *= cur_speed
+
+            radius_mask = radius <= self.innoc_width
+            phi_mask = (phi >= phi_occupied) & (phi <= phi_occupied + phi_to_occupy)
+
+            self.lattice_mesh[cur_pop, radius_mask & phi_mask] = 1
+
+            phi_occupied += phi_to_occupy
+            count += 1

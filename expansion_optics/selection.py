@@ -186,6 +186,9 @@ class Selective_Sweep(object):
 class Radial_Selective_Sweep(Selective_Sweep):
 
     def __init__(self, **kwargs):
+        self.phi = None
+        self.radius = None
+
         super(Radial_Selective_Sweep, self).__init__(**kwargs)
 
     # Innoc width is now the initial radius
@@ -203,8 +206,8 @@ class Radial_Selective_Sweep(Selective_Sweep):
         DX = self.X - center_X
         DY = self.Y - center_Y
 
-        phi = np.arctan2(DY, DX) + np.pi
-        radius = np.sqrt(DX**2 + DY**2)
+        self.phi = np.arctan2(DY, DX) + np.pi
+        self.radius = np.sqrt(DX**2 + DY**2)
 
         phi_occupied = 0
         count = 0
@@ -220,8 +223,8 @@ class Radial_Selective_Sweep(Selective_Sweep):
 
             self.speed_mesh[cur_pop] *= cur_speed
 
-            radius_mask = radius <= self.innoc_width
-            phi_mask = (phi >= phi_occupied) & (phi <= phi_occupied + phi_to_occupy)
+            radius_mask = self.radius <= self.innoc_width
+            phi_mask = (self.phi >= phi_occupied) & (self.phi <= phi_occupied + phi_to_occupy)
 
             self.lattice_mesh[cur_pop, radius_mask & phi_mask] = 1
 

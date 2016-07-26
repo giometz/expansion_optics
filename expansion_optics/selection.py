@@ -241,7 +241,7 @@ class Radial_Selective_Sweep(Selective_Sweep):
         super(Radial_Selective_Sweep, self).run_travel_times(max_time, num_intervals)
         self.travel_times[:, self.radius < self.innoc_width] = np.nan
 
-    def get_wall_df(self, ii, jj, expansion_size = 3):
+    def get_wall_df(self, ii, jj, expansion_size = 2):
 
         frozen_field= self.get_expansion_history()
         frozen_pops = np.zeros((frozen_field.shape[0], frozen_field.shape[1], self.num_pops), dtype=np.bool)
@@ -262,6 +262,9 @@ class Radial_Selective_Sweep(Selective_Sweep):
 
         df_list = []
 
+        num_bins = np.max(self.radius)/self.dx
+        num_bins = int(num_bins)
+
         for cur_label in range(1, np.max(labeled_walls) + 1):
             r, c = np.where(labeled_walls == cur_label)
 
@@ -270,9 +273,16 @@ class Radial_Selective_Sweep(Selective_Sweep):
 
             df = pd.DataFrame(data={'i': ii, 'j': jj, 'label_num': cur_label, 'radius': radius, 'phi': phi})
 
-            # Group the df so that there is only one y for each x
+            # Group the df so that there is only one phi for each radius
+            min_radius = self.innoc_width
+            max_radius = np.max(self.radius)
+
+            bins = np.linspace(min_radius, max_radius, num_bins)
+
+            cut = pd.cut(df['radius'], bins)
+            mean_df = df.groupby(cut).agg(np.mean)
 
             #df = df.groupby('x').agg(np.mean).reset_index()
 
-            df_list.append(df)
+            df_list.append(mean_df)
         return pd.concat(df_list)

@@ -185,9 +185,12 @@ class Selective_Sweep(object):
 
 class Radial_Selective_Sweep(Selective_Sweep):
 
-    def __init__(self, **kwargs):
+    def __init__(self, center_x_frac=None, center_y_frac=None, **kwargs):
         self.phi = None
         self.radius = None
+
+        self.center_x_frac = center_x_frac
+        self.center_y_frac = center_y_frac
 
         self.center_X = None
         self.center_Y = None
@@ -199,8 +202,8 @@ class Radial_Selective_Sweep(Selective_Sweep):
     def initialize_meshes(self):
 
         # Convert to radial coordinates
-        center_r = self.Ny/2
-        center_c = self.Nx/2
+        center_r = int(round(self.center_y_frac*self.Ny))
+        center_c = int(round(self.center_x_frac*self.Nx))
 
         self.center_X = self.X[center_r, center_c]
         self.center_Y = self.Y[center_r, center_c]

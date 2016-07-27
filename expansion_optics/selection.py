@@ -242,16 +242,14 @@ class Radial_Selective_Sweep(Selective_Sweep):
         self.travel_times[:, self.radius < self.innoc_width] = np.nan
 
     def get_expansion_history(self):
-        expansion_history = self.travel_times.copy()
-        expansion_history[expansion_history == 0] = np.inf
-        expansion_history = np.argmin(expansion_history, axis=0)  # Labeled by unique strain already
+        expansion_history = super(Radial_Selective_Sweep, self).get_expansion_history()
 
         expansion_history[self.radius < self.innoc_width] = -1
 
         return expansion_history
 
 
-    def get_wall_df(self, ii, jj, expansion_size = 1):
+    def get_wall_df(self, ii, jj, expansion_size = 2):
 
         frozen_field= self.get_expansion_history()
         frozen_pops = np.zeros((frozen_field.shape[0], frozen_field.shape[1], self.num_pops), dtype=np.bool)

@@ -249,7 +249,7 @@ class Radial_Selective_Sweep(Selective_Sweep):
         return expansion_history
 
 
-    def get_wall_df(self, ii, jj, expansion_size = 2):
+    def get_wall_df(self, ii, jj, expansion_size = 2, averaged=True):
 
         frozen_field= self.get_expansion_history()
         frozen_pops = np.zeros((frozen_field.shape[0], frozen_field.shape[1], self.num_pops), dtype=np.bool)
@@ -288,9 +288,10 @@ class Radial_Selective_Sweep(Selective_Sweep):
             bins = np.linspace(min_radius, max_radius, num_bins)
 
             cut = pd.cut(df['radius'], bins)
-            mean_df = df.groupby(cut).agg(np.mean)
+            if averaged:
+                df = df.groupby(cut).agg(np.mean)
 
             #df = df.groupby('x').agg(np.mean).reset_index()
 
-            df_list.append(mean_df)
+            df_list.append(df)
         return pd.concat(df_list)

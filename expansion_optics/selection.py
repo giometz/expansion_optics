@@ -99,7 +99,7 @@ class Selective_Sweep(object):
 
                 cur_speed = self.speed_mesh[i]
 
-                t = fmm.travel_time(cur_lattice, cur_speed, float(self.dx), narrow=2*cur_time)
+                t = fmm.travel_time(cur_lattice, cur_speed, float(self.dx), narrow=cur_time)
 
                 cur_travel_times[i, :, :] = t
 

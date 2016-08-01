@@ -67,7 +67,7 @@ class Selective_Sweep(object):
             if count == self.num_widths - 1:  # As the sum of all should equal one, but may not due to FP
                 num_to_occupy = self.Ny - sites_occupied
 
-            self.speed_mesh[cur_pop] *= cur_speed
+            self.speed_mesh[cur_pop] = cur_speed
 
             self.lattice_mesh[cur_pop, sites_occupied:sites_occupied + num_to_occupy, 0:self.innoc_width + 1] = 1
 
@@ -227,7 +227,7 @@ class Radial_Selective_Sweep(Selective_Sweep):
             if count == self.num_widths - 1:  # As the sum of all should equal one, but may not due to FP
                 phi_to_occupy = 2*np.pi - phi_occupied
 
-            self.speed_mesh[cur_pop] *= cur_speed
+            self.speed_mesh[cur_pop] = cur_speed
 
             radius_mask = self.radius <= self.innoc_width
             phi_mask = (self.phi >= phi_occupied) & (self.phi <= phi_occupied + phi_to_occupy)

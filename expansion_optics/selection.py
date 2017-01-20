@@ -74,6 +74,9 @@ class Selective_Sweep(object):
             sites_occupied += num_to_occupy
             count += 1
 
+    def before_travel_iteration(self, cur_time, expansion_history):
+        pass
+
     def run_travel_times(self, max_time, num_intervals):
         # create time intervals to recalculate obstacles
         times_to_run = np.linspace(0, max_time, num_intervals + 1)
@@ -89,8 +92,12 @@ class Selective_Sweep(object):
         cur_travel_times[-1, :, :] = 10*max_time
         self.all_obstacles = np.ones_like(self.lattice_mesh, dtype=np.bool) * False
 
+        expansion_history = None
         for cur_time in times_to_run:
             print cur_time
+
+            self.before_travel_iteration(cur_time, expansion_history) # Required for subclassing
+
             for i in range(self.num_pops):
                 cur_lattice = self.lattice_mesh[i]
                 cur_obstacle = self.all_obstacles[i]
@@ -191,68 +198,17 @@ class Changing_Fitness(Selective_Sweep):
 
         self.time_to_switch = time_to_switch
         self.switch_speeds = switch_speeds
+        self.has_switched = False
 
         super(Changing_Fitness, self).__init__(**kwargs)
 
-    def run_travel_times(self, max_time, num_intervals):
-        # create time intervals to recalculate obstacles
-        times_to_run = np.linspace(0, max_time, num_intervals + 1)
-        # Get rid of zero
-        times_to_run = times_to_run[1:]
-
-        # Include a dummy travel time background
-        cur_travel_times = np.zeros((self.num_pops + 1,
-                                     self.lattice_mesh.shape[1],
-                                     self.lattice_mesh.shape[2]),
-                                    dtype=np.double)
-
-        cur_travel_times[-1, :, :] = 10*max_time
-        self.all_obstacles = np.ones_like(self.lattice_mesh, dtype=np.bool) * False
-
-        have_switched = False
-        expansion_history = None
-
-        for cur_time in times_to_run:
-            print cur_time
-
-            if (not have_switched) and cur_time >= self.time_to_switch:
-                # Wherever you *aren't*, set your speedmesh to the new speed
-                for i in  range(self.num_pops):
-                    not_current_strain = (expansion_history != i)
-                    self.speed_mesh[i, not_current_strain] = self.switch_speeds[i]
-                have_switched = True
-
+    def before_travel_iteration(self, cur_time, expansion_history):
+        if (not self.has_switched) and cur_time >= self.time_to_switch:
+            # Wherever you *aren't*, set your speedmesh to the new speed
             for i in range(self.num_pops):
-                cur_lattice = self.lattice_mesh[i]
-                cur_obstacle = self.all_obstacles[i]
-                # Mask the lattice by the obstacles...other strains
-                cur_lattice = np.ma.MaskedArray(cur_lattice, cur_obstacle)
-
-                cur_speed = self.speed_mesh[i]
-
-                t = fmm.travel_time(cur_lattice, cur_speed, float(self.dx), narrow=cur_time)
-
-                cur_travel_times[i, :, :] = t
-
-            # Based on the travel times, create obstacle masks for each strain
-            non_background = cur_travel_times[0:self.num_pops, : , :]
-            non_background[non_background > cur_time] = np.inf
-            # If cur_travel_times = 0, you are in an obstacle
-            non_background[non_background == 0] = np.inf
-
-            expansion_history = np.nanargmin(cur_travel_times, axis=0)
-
-            for i in range(self.num_pops): # Loop over strains, locate obstacles
-                # Make sure nan's do not interfere with future
                 not_current_strain = (expansion_history != i)
-                not_background = (expansion_history != self.num_pops) # Dummy background strain
-
-                self.all_obstacles[i, :, :] = not_current_strain & not_background
-
-        self.travel_times = cur_travel_times[0:self.num_pops, :, :]
-
-
-
+                self.speed_mesh[i, not_current_strain] = self.switch_speeds[i]
+            self.has_switched = True
 
 class Radial_Selective_Sweep(Selective_Sweep):
 

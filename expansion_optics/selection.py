@@ -335,3 +335,21 @@ class Radial_Selective_Sweep(Selective_Sweep):
 
             df_list.append(df)
         return pd.concat(df_list)
+
+class Changing_Radial_Fitness(Radial_Selective_Sweep):
+
+    def __init__(self, time_to_switch=None, switch_speeds=None, **kwargs):
+
+        self.time_to_switch = time_to_switch
+        self.switch_speeds = switch_speeds
+        self.has_switched = False
+
+        super(Changing_Radial_Fitness, self).__init__(**kwargs)
+
+    def before_travel_iteration(self, cur_time, expansion_history):
+        if (not self.has_switched) and cur_time >= self.time_to_switch:
+            # Wherever you *aren't*, set your speedmesh to the new speed
+            for i in range(self.num_pops):
+                not_current_strain = (expansion_history != i)
+                self.speed_mesh[i, not_current_strain] = self.switch_speeds[i]
+            self.has_switched = True

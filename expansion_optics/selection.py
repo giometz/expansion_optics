@@ -361,3 +361,4 @@ class Changing_Radial_Fitness(Radial_Selective_Sweep):
                 if self.has_switched == True:
                     self.speed_mesh[i, not_current_strain] = self.initial_speeds[i]
             self.has_switched = not self.has_switched
+            print 'THIS IS A STUPID PRINT LINE'

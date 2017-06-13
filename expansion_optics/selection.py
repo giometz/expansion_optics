@@ -347,9 +347,17 @@ class Changing_Radial_Fitness(Radial_Selective_Sweep):
         super(Changing_Radial_Fitness, self).__init__(**kwargs)
 
     def before_travel_iteration(self, cur_time, expansion_history):
-        if (not self.has_switched) and cur_time >= self.time_to_switch:
+        if cur_time >= self.time_to_switch:
+            print 'switching'
+            if self.has_switched == False:
+                self.time_to_switch = self.time_to_switch + 80
+            if self.has_switched == True:
+                self.time_to_switch = self.time_to_switch + 40
             # Wherever you *aren't*, set your speedmesh to the new speed
             for i in range(self.num_pops):
                 not_current_strain = (expansion_history != i)
-                self.speed_mesh[i, not_current_strain] = self.switch_speeds[i]
-            self.has_switched = True
+                if self.has_switched == False:
+                    self.speed_mesh[i, not_current_strain] = self.switch_speeds[i]
+                if self.has_switched == True:
+                    self.speed_mesh[i, not_current_strain] = self.initial_speeds[i]
+            self.has_switched = not self.has_switched

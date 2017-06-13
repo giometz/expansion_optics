@@ -338,29 +338,29 @@ class Radial_Selective_Sweep(Selective_Sweep):
 
 class Changing_Radial_Fitness(Radial_Selective_Sweep):
 
-    def __init__(self, delta_time_fast=None, delta_time_slow=None, time_to_switch=None, slow_speeds=None, fast_speeds=None, **kwargs):
+    def __init__(self, delta_time_fast=None, delta_time_slow=None, time_to_switch=None, slow_speeds=None, fast_speeds=None, is_it_fast=None, **kwargs):
 
         self.delta_time_fast = delta_time_fast # time spent in the high-velocity environment
         self.delta_time_slow = delta_time_slow # time spent in the slow-velocity environment
         self.time_to_switch = time_to_switch
         self.slow_speeds = slow_speeds
         self.fast_speeds = fast_speeds
-        self.has_switched = False
+        self.is_it_fast = is_it_fast
 
         super(Changing_Radial_Fitness, self).__init__(**kwargs)
 
     def before_travel_iteration(self, cur_time, expansion_history):
         if cur_time >= self.time_to_switch:
             print 'switching'
-            if not self.has_switched:
+            if self.is_it_fast:
                 self.time_to_switch = self.time_to_switch + self.delta_time_slow
-            if self.has_switched:
+            if not self.is_it_fast:
                 self.time_to_switch = self.time_to_switch + self.delta_time_fast
             # Wherever you *aren't*, set your speedmesh to the new speed
             for i in range(self.num_pops):
                 not_current_strain = (expansion_history != i)
-                if self.has_switched == False:
+                if self.is_it_fast:
                     self.speed_mesh[i, not_current_strain] = self.slow_speeds[i]
-                if self.has_switched == True:
+                if not self.is_it_fast:
                     self.speed_mesh[i, not_current_strain] = self.fast_speeds[i]
-            self.has_switched = not self.has_switched
+            self.is_it_fast = not self.is_it_fast
